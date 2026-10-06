@@ -1,0 +1,17 @@
+{
+  "name": "goody-tech-bot-2026",
+  "version": "1.0.0",
+  "description": "Goody Tech WhatsApp Bot",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "6.7.20",
+    "pino": "9.6.0"
+  },
+  "engines": {
+    "node": "20.x"
+  }
+}
