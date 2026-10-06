@@ -1,12 +1,38 @@
+import http from "http";
 import makeWASocket, {
   useMultiFileAuthState,
   DisconnectReason
 } from "@whiskeysockets/baileys";
-
 import pino from "pino";
+
+// ==============================
+// ONEBIT HEALTH SERVER
+// ==============================
+
+const PORT = process.env.PORT || 3000;
+
+const server = http.createServer((req, res) => {
+  res.writeHead(200, {
+    "Content-Type": "text/plain"
+  });
+
+  res.end("Goody Tech WhatsApp Bot is running!");
+});
+
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`🌐 Health server running on port ${PORT}`);
+});
+
+// ==============================
+// BOT SETTINGS
+// ==============================
 
 const PREFIX = ".";
 const PHONE_NUMBER = "2348136045102";
+
+// ==============================
+// START BOT
+// ==============================
 
 async function startBot() {
   const { state, saveCreds } =
@@ -21,7 +47,11 @@ async function startBot() {
 
   sock.ev.on("creds.update", saveCreds);
 
-  let pairingDone = false;
+  let pairingRequested = false;
+
+  // ==============================
+  // CONNECTION
+  // ==============================
 
   sock.ev.on("connection.update", async (update) => {
     const {
@@ -34,16 +64,16 @@ async function startBot() {
       console.log("🔄 Connecting Goody Tech Bot...");
     }
 
-    /*
-     * Request pairing code only after Baileys
-     * provides the initial QR/connection event.
-     */
+    // ==============================
+    // PAIRING CODE
+    // ==============================
+
     if (
       qr &&
       !state.creds.registered &&
-      !pairingDone
+      !pairingRequested
     ) {
-      pairingDone = true;
+      pairingRequested = true;
 
       try {
         console.log(
@@ -72,12 +102,15 @@ async function startBot() {
           "================================="
         );
         console.log("");
+
         console.log(
           "WhatsApp → Linked Devices →"
         );
+
         console.log(
           "Link a device → Link with phone number"
         );
+
         console.log("");
       } catch (error) {
         console.error(
@@ -85,9 +118,13 @@ async function startBot() {
           error
         );
 
-        pairingDone = false;
+        pairingRequested = false;
       }
     }
+
+    // ==============================
+    // BOT ONLINE
+    // ==============================
 
     if (connection === "open") {
       console.log("");
@@ -103,12 +140,22 @@ async function startBot() {
       console.log("");
     }
 
+    // ==============================
+    // DISCONNECTED
+    // ==============================
+
     if (connection === "close") {
       const statusCode =
         lastDisconnect?.error?.output?.statusCode;
 
-      console.log("❌ WhatsApp connection closed.");
-      console.log("Status code:", statusCode);
+      console.log(
+        "❌ WhatsApp connection closed."
+      );
+
+      console.log(
+        "Status code:",
+        statusCode
+      );
 
       if (
         statusCode === DisconnectReason.loggedOut
@@ -116,10 +163,11 @@ async function startBot() {
         console.log(
           "⚠️ WhatsApp account logged out."
         );
+
         return;
       }
 
-      pairingDone = false;
+      pairingRequested = false;
 
       console.log(
         "🔄 Reconnecting in 5 seconds..."
@@ -160,6 +208,10 @@ async function startBot() {
           .toLowerCase();
 
         const jid = msg.key.remoteJid;
+
+        // ==============================
+        // MENU
+        // ==============================
 
         if (
           command === "menu" ||
@@ -209,6 +261,10 @@ async function startBot() {
           });
         }
 
+        // ==============================
+        // PING
+        // ==============================
+
         else if (command === "ping") {
           await sock.sendMessage(jid, {
             text:
@@ -217,6 +273,10 @@ async function startBot() {
           });
         }
 
+        // ==============================
+        // OWNER
+        // ==============================
+
         else if (command === "owner") {
           await sock.sendMessage(jid, {
             text:
@@ -224,6 +284,10 @@ async function startBot() {
               "🎨 Goody Tech Editz"
           });
         }
+
+        // ==============================
+        // INFO
+        // ==============================
 
         else if (command === "info") {
           await sock.sendMessage(jid, {
@@ -245,13 +309,4 @@ async function startBot() {
   );
 }
 
-console.log(
-  "🚀 Starting Goody Tech WhatsApp Bot..."
-);
-
-startBot().catch((error) => {
-  console.error(
-    "❌ Fatal error:",
-    error
-  );
-});
+// =================
