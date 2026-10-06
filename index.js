@@ -21,79 +21,138 @@ async function startBot() {
 
   sock.ev.on("creds.update", saveCreds);
 
+  let pairingDone = false;
+
   sock.ev.on("connection.update", async (update) => {
-    const { connection, lastDisconnect } = update;
+    const {
+      connection,
+      lastDisconnect,
+      qr
+    } = update;
 
     if (connection === "connecting") {
       console.log("🔄 Connecting Goody Tech Bot...");
     }
 
+    /*
+     * Request pairing code only after Baileys
+     * provides the initial QR/connection event.
+     */
+    if (
+      qr &&
+      !state.creds.registered &&
+      !pairingDone
+    ) {
+      pairingDone = true;
+
+      try {
+        console.log(
+          "🔐 WhatsApp is ready for pairing..."
+        );
+
+        const code =
+          await sock.requestPairingCode(
+            PHONE_NUMBER
+          );
+
+        console.log("");
+        console.log(
+          "================================="
+        );
+        console.log(
+          "🔐 GOODY TECH BOT PAIRING CODE"
+        );
+        console.log(
+          "================================="
+        );
+        console.log(
+          `PAIRING CODE: ${code}`
+        );
+        console.log(
+          "================================="
+        );
+        console.log("");
+        console.log(
+          "WhatsApp → Linked Devices →"
+        );
+        console.log(
+          "Link a device → Link with phone number"
+        );
+        console.log("");
+      } catch (error) {
+        console.error(
+          "❌ Pairing code error:",
+          error
+        );
+
+        pairingDone = false;
+      }
+    }
+
     if (connection === "open") {
-      console.log("=================================");
-      console.log("✅ GOODY TECH BOT IS ONLINE!");
-      console.log("=================================");
+      console.log("");
+      console.log(
+        "================================="
+      );
+      console.log(
+        "✅ GOODY TECH BOT IS ONLINE!"
+      );
+      console.log(
+        "================================="
+      );
+      console.log("");
     }
 
     if (connection === "close") {
       const statusCode =
         lastDisconnect?.error?.output?.statusCode;
 
-      console.log("❌ Bot disconnected.");
+      console.log("❌ WhatsApp connection closed.");
       console.log("Status code:", statusCode);
 
-      if (statusCode === DisconnectReason.loggedOut) {
-        console.log("⚠️ WhatsApp logged out.");
+      if (
+        statusCode === DisconnectReason.loggedOut
+      ) {
+        console.log(
+          "⚠️ WhatsApp account logged out."
+        );
         return;
       }
 
-      console.log("🔄 Reconnecting...");
-      setTimeout(startBot, 5000);
+      pairingDone = false;
+
+      console.log(
+        "🔄 Reconnecting in 5 seconds..."
+      );
+
+      setTimeout(() => {
+        startBot();
+      }, 5000);
     }
   });
 
-  // Pairing code
-  if (!state.creds.registered) {
-    try {
-      await new Promise(resolve => setTimeout(resolve, 5000));
+  // ==============================
+  // COMMANDS
+  // ==============================
 
-      const code =
-        await sock.requestPairingCode(PHONE_NUMBER);
-
-      console.log("");
-      console.log("╔══════════════════════════════════╗");
-      console.log("║     GOODY TECH BOT PAIRING       ║");
-      console.log("╠══════════════════════════════════╣");
-      console.log(`║  PAIRING CODE: ${code}           ║`);
-      console.log("╚══════════════════════════════════╝");
-      console.log("");
-      console.log(
-        "WhatsApp → Linked Devices → Link a device →"
-      );
-      console.log("Link with phone number");
-      console.log("Enter the pairing code above.");
-    } catch (error) {
-      console.error(
-        "❌ Could not generate pairing code:",
-        error
-      );
-    }
-  }
-
-  // Messages
   sock.ev.on(
     "messages.upsert",
     async ({ messages }) => {
       try {
         const msg = messages[0];
 
-        if (!msg?.message || msg.key.fromMe) return;
+        if (!msg?.message || msg.key.fromMe) {
+          return;
+        }
 
         const text =
           msg.message.conversation ||
           msg.message.extendedTextMessage?.text ||
           "";
 
-        if (!text.startsWith(PREFIX)) return;
+        if (!text.startsWith(PREFIX)) {
+          return;
+        }
 
         const command = text
           .slice(PREFIX.length)
@@ -102,7 +161,10 @@ async function startBot() {
 
         const jid = msg.key.remoteJid;
 
-        if (command === "menu" || command === "help") {
+        if (
+          command === "menu" ||
+          command === "help"
+        ) {
           await sock.sendMessage(jid, {
             text: `
 ╭━━━〔 GOODY TECH BOT 〕━━━╮
@@ -114,6 +176,7 @@ async function startBot() {
 ┃
 ┣━━〔 GENERAL 〕━━
 ┃ .menu
+┃ .help
 ┃ .ping
 ┃ .owner
 ┃ .info
@@ -174,7 +237,7 @@ async function startBot() {
 
       } catch (error) {
         console.error(
-          "❌ Message handler error:",
+          "❌ Message error:",
           error
         );
       }
@@ -182,8 +245,13 @@ async function startBot() {
   );
 }
 
-console.log("🚀 Starting Goody Tech WhatsApp Bot...");
+console.log(
+  "🚀 Starting Goody Tech WhatsApp Bot..."
+);
 
-startBot().catch(error => {
-  console.error("❌ Fatal bot error:", error);
+startBot().catch((error) => {
+  console.error(
+    "❌ Fatal error:",
+    error
+  );
 });
